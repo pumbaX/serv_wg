@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# Script: install_all.sh
+# Desc: Устанавливает amnezia.sh и docker-install.sh по порядку
+
+set -e  # Выход при ошибке
+
+echo "=== УСТАНОВКА AMNEZIA + DOCKER ==="
+echo ""
+
+# 1. Проверка прав root
+if [[ $EUID -ne 0 ]]; then
+    echo "Этот скрипт требует прав root. Используйте sudo!"
+    exit 1
+fi
+
+# 2. Создаем временную папку
+TEMP_DIR="/tmp/wg_install_$(date +%s)"
+mkdir -p "$TEMP_DIR"
+cd "$TEMP_DIR"
+
+echo "📁 Рабочая папка: $TEMP_DIR"
+echo ""
+
+# 3. Скачиваем amnezia.sh
+echo "🔽 Скачиваю amnezia.sh..."
+if wget -q https://raw.githubusercontent.com/pumbaX/serv_wg/main/amnezia.sh; then
+    chmod +x amnezia.sh
+    echo "✅ amnezia.sh скачан и готов к запуску"
+else
+    echo "❌ Ошибка при скачивании amnezia.sh"
+    exit 1
+fi
+
+# 4. Скачиваем docker-install.sh
+echo "🔽 Скачиваю docker-install.sh..."
+if wget -q https://raw.githubusercontent.com/pumbaX/serv_wg/main/docker-install.sh; then
+    chmod +x docker-install.sh
+    echo "✅ docker-install.sh скачан и готов к запуску"
+else
+    echo "❌ Ошибка при скачивании docker-install.sh"
+    exit 1
+fi
+
+echo ""
+echo "========================================"
+echo "1. СНАЧАЛА БУДЕТ УСТАНОВЛЕН DOCKER"
+echo "2. ЗАТЕМ БУДЕТ УСТАНОВЛЕНА AMNEZIA/WIREGUARD"
+echo "========================================"
+echo ""
+
+# 5. Подтверждение
+read -p "Продолжить установку? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Установка отменена. Скрипты сохранены в $TEMP_DIR"
+    exit 0
+fi
+
+# 6. Устанавливаем Docker ПЕРВЫМ (это важно!)
+echo "🚀 Запускаю установку Docker..."
+echo "----------------------------------------"
+./docker-install.sh
+
+echo ""
+echo "✅ Docker успешно установлен!"
+echo ""
+
+# 7. Пауза для проверки Docker
+read -p "Docker установлен. Продолжить с установкой Amnezia? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Установка Docker завершена. Amnezia не установлена."
+    exit 0
+fi
+
+# 8. Устанавливаем Amnezia
+echo "🚀 Запускаю установку Amnezia..."
+echo "----------------------------------------"
+./amnezia.sh
+
+echo ""
+echo "========================================"
+echo "🎉 ВСЁ УСТАНОВЛЕНО!"
+echo "========================================"
+echo "Скрипты остались в: $TEMP_DIR"
